@@ -526,6 +526,9 @@ jQuery(function($){
       sock.send(JSON.stringify({'data': data}));
     });
 
+    // 心跳定时器变量
+    var heartbeatInterval;
+
     sock.onopen = function() {
       term.open(terminal);
       toggle_fullscreen(term);
@@ -533,6 +536,16 @@ jQuery(function($){
       term.focus();
       state = CONNECTED;
       title_element.text = url_opts_data.title || default_title;
+      
+      // 设置心跳定时器，每25秒发送一次心跳
+      heartbeatInterval = setInterval(function() {
+        if (sock.readyState === WebSocket.OPEN) {
+          // 发送一个空操作或特殊心跳包
+          sock.send(JSON.stringify({'data': '\x05'})); // ENQ 控制字符
+          console.log('Heartbeat sent');
+        }
+      }, 25000); // 25秒
+
       if (url_opts_data.command) {
         setTimeout(function () {
           sock.send(JSON.stringify({'data': url_opts_data.command+'\r'}));
@@ -549,6 +562,10 @@ jQuery(function($){
     };
 
     sock.onclose = function(e) {
+      // 清除心跳定时器
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+      }
       term.dispose();
       term = undefined;
       sock = undefined;
